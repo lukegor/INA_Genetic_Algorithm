@@ -1,4 +1,6 @@
 using System.Collections;
+using System.Security.AccessControl;
+using System.Text;
 using System.Windows.Forms;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 
@@ -316,9 +318,11 @@ namespace INA_Z2
 			return xbinArray;
 		}
 
-		public string[] FillParentsColumnAndParentsArray(int n, double p_k, ReadOnlySpan<string> xbinArray)
+		public (string[], object[]) FillParentsColumnAndParentsArray(int n, double p_k, ReadOnlySpan<string> xbinArray)
 		{
 			string[] parents = new string[n];
+			object[] parentsFromDataGridView = new object[n];
+
 			do
 			{
 				for (int i = 0; i < n; ++i)
@@ -328,14 +332,15 @@ namespace INA_Z2
 						double tmpR = random.NextDouble();
 						if (tmpR <= p_k)
 						{
-							dataGridView1[9, i].Value = xbinArray[i];
 							parents[i] = xbinArray[i];
+							parentsFromDataGridView[i] = parents[i];
+							dataGridView1[9, i].Value = parents[i];
 						}
 					}
 				}
 			} while (parents.Count(parent => parent != string.Empty) == 1);
 
-			return parents;
+			return (parents, parentsFromDataGridView);
 		}
 
 		public int CountParents(int n, ReadOnlySpan<string> parents)
@@ -386,19 +391,22 @@ namespace INA_Z2
 			return pairs;
 		}
 
-		public void FillP_cColumn(ReadOnlySpan<string> parents, List<Tuple<string, string, int>> pairs)
+		public void FillP_cColumn(ReadOnlySpan<string> parents, List<Tuple<string, string, int>> pairs, object[] parentsFromDataGridView)
 		{
 			int pom = 0;
+			int[] Pcs = new int[parents.Length];
+
 			for (int z = pom; z < parents.Length; ++z)
 			{
-				if (dataGridView1[9, z].Value != null)
+				if (!string.IsNullOrEmpty(parents[z]))
 				{
 					int pom2 = 0;
 					for (int pairIterator = pom2; pairIterator < pairs.Count; ++pairIterator)
 					{
-						if (dataGridView1[9, z].Value == pairs[pairIterator].Item1 || dataGridView1[9, z].Value == pairs[pairIterator].Item2)
+						if (parentsFromDataGridView[z].ToString() == pairs[pairIterator].Item1 || parentsFromDataGridView[z].ToString() == pairs[pairIterator].Item2)
 						{
-							dataGridView1[10, z].Value = pairs[pairIterator].Item3;
+							Pcs[z] = pairs[pairIterator].Item3;
+							dataGridView1[10, z].Value = Pcs[z];
 							break;
 						}
 						++pom2;
@@ -511,9 +519,16 @@ namespace INA_Z2
 
 		public void Fill2DArrayWithMutatedBitsIndexes(int n, int l, float p_m, ReadOnlySpan<string> allPostCrossing, int[,] mutatedIndexes)
 		{
+			StringBuilder[] sb = new StringBuilder[n];
+
+			for (int i = 0; i < n; i++)
+			{
+				sb[i] = new StringBuilder();
+			}
+
 			for (int i = 0; i < n; ++i)
 			{
-				if (dataGridView1[11, i].Value != null)
+				if (allPostCrossing[i] != null)
 				{
 					string postCrossingString = allPostCrossing[i];
 
@@ -524,15 +539,17 @@ namespace INA_Z2
 
 						if (randomVal <= p_m)
 						{
-							if (dataGridView1[12, i].Value != null)
+							if (sb[i].Length != 0)
 							{
-								dataGridView1[12, i].Value += ", ";
+								sb[i].Append(", ");
 							}
-							dataGridView1[12, i].Value += $"{j}";
+							sb[i].Append($"{j}");
+
 							mutatedIndexes[i, j] = j;
 						}
 						++j;
 					}
+					dataGridView1[12, i].Value = sb[i];
 				}
 			}
 		}
@@ -637,7 +654,8 @@ namespace INA_Z2
 
 			//write parents based on condition with random value, choose until at least 2 parents are chosen (until a first-time xbin is chosen to be parent)
 			string[] parents = new string[n];
-			parents = FillParentsColumnAndParentsArray(n, p_k, xbinArr);
+			object[] parentsFromDataGridView = new object[n];
+			(parents, parentsFromDataGridView) = FillParentsColumnAndParentsArray(n, p_k, xbinArr);
 
 			//count parents
 			int parentCounter = CountParents(n, parents);
@@ -656,7 +674,7 @@ namespace INA_Z2
 
 			//get p_c (cutting point) for every pair
 			//if parents count is odd, one parent is left with a singular cutting point
-			FillP_cColumn(parents, pairs);
+			FillP_cColumn(parents, pairs, parentsFromDataGridView);
 
 			#endregion
 
